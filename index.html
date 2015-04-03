@@ -1,0 +1,107 @@
+<script src="lib/enchant.js"></script>
+<script>
+	enchant();
+	window.onload = function() {
+		var game = new Game(320, 320);
+		game.fps = 30;
+		game.scale = 1;
+		game.preload('assets/bg.png','assets/ship.png', 'assets/beam.png');
+
+		game.onload = function() {
+			// todo multiple players
+			game.keybind(38, 'up');
+			game.keybind(40, 'down');
+			game.keybind(39, 'right');
+			game.keybind(37, 'left');
+			game.keybind(85, 'shoot');
+
+			// Game has finished loading!
+			var scene = new SceneGame();
+			game.pushScene(scene);
+		};
+
+		game.start();
+		// gameplay scene
+		var SceneGame = Class.create(Scene, {
+			initialize: function() {
+				var game, scoreLabel, bg, player;
+				
+				Scene.apply(this);
+				game = Game.instance;
+
+				scoreLabel = new Label("Score: 0");
+				bg = new Sprite(320, 320);
+				bg.image = game.assets["assets/bg.png"];
+
+				player = new PlayerShip();
+				
+				this.addChild(bg);
+				this.addChild(player);
+				this.addChild(scoreLabel);
+
+			}
+		});
+
+		var PlayerShip = Class.create(Sprite, {
+			initialize: function() {
+				this.moveSpeed = 3;
+				// super
+				Sprite.apply(this, [80, 87]);
+				
+				this.x = 120;
+				this.y = 220;
+				
+				this.game = Game.instance;
+				this.image = this.game.assets['assets/ship.png'];
+
+				this.lastShot = 0;
+				this.addEventListener(Event.ENTER_FRAME, this.update);
+			},
+			update: function(evt) {
+				this.lastShot += evt.elapsed;
+				// Up / Down
+				if(this.game.input.up && this.y > this.moveSpeed) {
+					this.y -= this.moveSpeed;
+				}
+				else if(this.game.input.down && this.y < this.game.height - this.height) {
+					this.y += this.moveSpeed;
+				}
+				// Left / Right
+				if(this.game.input.left && this.x > this.moveSpeed) {
+					this.x -= this.moveSpeed;
+				}
+				else if(this.game.input.right && this.x < this.game.width - this.width) {
+					this.x += this.moveSpeed;
+				}
+				// Shooting
+				if (this.game.input.shoot && this.lastShot > 200) {
+					console.log("SHOOT");
+					this.lastShot = 0;
+					var bullet = new Bullet(this.x + this.width/2, this.y);
+					this.parentNode.addChild(bullet);
+				}
+			}
+		});
+var Bullet = Class.create(Sprite, {
+	initialize: function(x, y) {
+		this.moveSpeed = 3;
+		// super
+		Sprite.apply(this, [10, 30]);
+		
+		this.x = x;
+		this.y = y - this.height;
+		
+		this.game = Game.instance;
+		this.image = this.game.assets['assets/beam.png'];
+
+		this.addEventListener(Event.ENTER_FRAME, this.update);
+	},
+	update: function(evt) {
+		this.y -= this.moveSpeed;
+		if(this.y+this.height < 0) {
+			this.parentNode.removeChild(this);
+		}
+	}
+});
+	};
+</script>
