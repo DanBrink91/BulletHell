@@ -38,7 +38,8 @@
 				bg.image = game.assets["assets/bg.png"];
 
 				this.player = new PlayerShip();
-				this.bg = new LevelBackground();
+				this.bg = new LevelBackground(1, 1);
+				this.bg2 = new LevelBackground(2, -1);
 				this.enemySpawner = new EnemySpawner(this);
 				
 				this.currentLevel = new Level([
@@ -50,6 +51,7 @@
 
 				this.addChild(bg);
 				this.addChild(this.bg);
+				this.addChild(this.bg2);
 				this.addChild(this.player);
 				this.addChild(this.scoreLabel);
 				this.addEventListener(Event.ENTER_FRAME, this.update);			
@@ -58,7 +60,6 @@
 				this.currentLevel.update(evt);
 				this.enemySpawner.update(evt);
 				this.scoreLabel.text = "Score: " + this.score;
-				//if (this.debugOne == true) {console.log(bg); this.debugOne = false; }
 
 			}
 		});
@@ -365,25 +366,29 @@
 
 
 		var LevelBackground = Class.create(Sprite, {
-			initialize: function() {
+			initialize: function(y, scaleY) {
 				// super
 				Sprite.apply(this, [2400, 3840]);
 				
 				this.game = Game.instance;
 				this.image = this.game.assets['assets/1.jpg'];
 
-				this.scaleX = 0.8;
-				this.scaleY = 0.8;
+				// this.scaleX = (this.height / this.game.height);
+				this.scaleY = scaleY;
 
 				this.x = (this.game.width/2) - (this.width / 2);
-				this.y = this.game.height - this.height;
-				this.moveSpeed = 8;
+				this.y = this.game.height - this.height * y;
+				this.moveSpeed = 12;
 				
 
 				this.addEventListener(Event.ENTER_FRAME, this.update);
 			},
 			update: function(evt) {
 				this.y += this.moveSpeed;
+				if (this.y > this.game.height){
+					this.scaleY *= -1;
+					this.y = -this.height;
+				}
 				// Up / Down
 			}
 		});
