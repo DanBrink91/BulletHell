@@ -62,7 +62,7 @@
 
 				this.x = (this.game.width/2) - (this.width / 2);
 				this.y = this.game.height - this.height;
-				this.moveSpeed = 5;
+				this.moveSpeed = 8;
 				this.lastShot = 0;
 
 				this.addEventListener(Event.ENTER_FRAME, this.update);
@@ -75,14 +75,22 @@
 				}
 				else if(this.game.input.down && this.y < this.game.height - this.height) {
 					this.y += this.moveSpeed;
+
 				}
 				// Left / Right
 				if(this.game.input.left && this.x > this.moveSpeed) {
 					this.x -= this.moveSpeed;
+					this.rotation = -3;
 				}
 				else if(this.game.input.right && this.x < this.game.width - this.width) {
 					this.x += this.moveSpeed;
+					this.rotation = 3;
 				}
+
+				if(!this.game.input.right && !this.game.input.left ) {
+					this.rotation = 0;
+				}
+
 				// Shooting
 				if (this.game.input.shoot && this.lastShot > 200) {
 					this.lastShot = 0;
@@ -208,10 +216,10 @@
 				// 2 = seek top
 				// 3 = hover down
 				this.moveType = moveType;
-				this.moveSpeed = 2;
+				this.moveSpeed = 5;
 				// circle movement
 				this.degree = Math.PI;
-				this.rotationalSpeed = Math.PI / 100;
+				this.rotationalSpeed = Math.PI / 80;
 				this.degreeBreak =  -3 * Math.PI / 2;
 				this.radius = 100;
 				this.center_x = 100;
