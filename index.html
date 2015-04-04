@@ -1,11 +1,12 @@
 <script src="lib/enchant.js"></script>
 <script>
+
 	enchant();
 	window.onload = function() {
 		var game = new Game(800, 600);
 		game.fps = 30;
 		game.scale = 1;
-		game.preload('assets/bg.png','assets/ship.png', 'assets/beam.png', 'assets/enemy.png');
+		game.preload('assets/bg.png','assets/ship.png', 'assets/beam.png', 'assets/enemy.png', 'assets/1.jpg');
 
 		game.onload = function() {
 			// todo multiple players
@@ -26,7 +27,8 @@
 		var SceneGame = Class.create(Scene, {
 			initialize: function() {
 				var game, scoreLabel, bg, player;
-				
+				//this.debugOne = true;
+
 				Scene.apply(this);
 				game = Game.instance;
 				this.score = 0;
@@ -36,6 +38,7 @@
 				bg.image = game.assets["assets/bg.png"];
 
 				this.player = new PlayerShip();
+				this.bg = new LevelBackground();
 				this.enemySpawner = new EnemySpawner(this);
 				
 				this.currentLevel = new Level([
@@ -46,6 +49,7 @@
 				], this.enemySpawner);				
 
 				this.addChild(bg);
+				this.addChild(this.bg);
 				this.addChild(this.player);
 				this.addChild(this.scoreLabel);
 				this.addEventListener(Event.ENTER_FRAME, this.update);			
@@ -54,6 +58,8 @@
 				this.currentLevel.update(evt);
 				this.enemySpawner.update(evt);
 				this.scoreLabel.text = "Score: " + this.score;
+				//if (this.debugOne == true) {console.log(bg); this.debugOne = false; }
+
 			}
 		});
 
@@ -354,6 +360,31 @@
 				// else if(this.horizontalMoveSpeed < 0 && this.x + this.horizontalMoveSpeed > 0) {
 				// 	this.x += this.horizontalMoveSpeed;
 				// }
+			}
+		});
+
+
+		var LevelBackground = Class.create(Sprite, {
+			initialize: function() {
+				// super
+				Sprite.apply(this, [2400, 3840]);
+				
+				this.game = Game.instance;
+				this.image = this.game.assets['assets/1.jpg'];
+
+				this.scaleX = 0.8;
+				this.scaleY = 0.8;
+
+				this.x = (this.game.width/2) - (this.width / 2);
+				this.y = this.game.height - this.height;
+				this.moveSpeed = 8;
+				
+
+				this.addEventListener(Event.ENTER_FRAME, this.update);
+			},
+			update: function(evt) {
+				this.y += this.moveSpeed;
+				// Up / Down
 			}
 		});
 		var Level = Class.create({
