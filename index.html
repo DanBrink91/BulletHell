@@ -2,10 +2,10 @@
 <script>
 	enchant();
 	window.onload = function() {
-		var game = new Game(320, 320);
+		var game = new Game(800, 600);
 		game.fps = 30;
 		game.scale = 1;
-		game.preload('assets/bg.png','assets/ship.png', 'assets/beam.png');
+		game.preload('assets/bg.png','assets/ship.png', 'assets/beam.png', 'assets/enemy.png');
 
 		game.onload = function() {
 			// todo multiple players
@@ -21,6 +21,7 @@
 		};
 
 		game.start();
+
 		// gameplay scene
 		var SceneGame = Class.create(Scene, {
 			initialize: function() {
@@ -30,31 +31,36 @@
 				game = Game.instance;
 
 				scoreLabel = new Label("Score: 0");
-				bg = new Sprite(320, 320);
+				bg = new Sprite(game.width, game.height);
 				bg.image = game.assets["assets/bg.png"];
 
-				player = new PlayerShip();
+				this.player = new PlayerShip();
 				
-				this.addChild(bg);
-				this.addChild(player);
-				this.addChild(scoreLabel);
+				this.enemySpawner = new EnemySpawner(this);
 
+				this.addChild(bg);
+				this.addChild(this.player);
+				this.addChild(scoreLabel);
+				this.addEventListener(Event.ENTER_FRAME, this.update);			
+			},
+			update: function(evt){
+				this.enemySpawner.update(evt);
 			}
 		});
 
 		var PlayerShip = Class.create(Sprite, {
 			initialize: function() {
-				this.moveSpeed = 3;
 				// super
 				Sprite.apply(this, [80, 87]);
-				
-				this.x = 120;
-				this.y = 220;
 				
 				this.game = Game.instance;
 				this.image = this.game.assets['assets/ship.png'];
 
+				this.x = (this.game.width/2) - (this.width / 2);
+				this.y = this.game.height - this.height;
+				this.moveSpeed = 5;
 				this.lastShot = 0;
+
 				this.addEventListener(Event.ENTER_FRAME, this.update);
 			},
 			update: function(evt) {
@@ -75,33 +81,133 @@
 				}
 				// Shooting
 				if (this.game.input.shoot && this.lastShot > 200) {
-					console.log("SHOOT");
 					this.lastShot = 0;
-					var bullet = new Bullet(this.x + this.width/2, this.y);
+					var bullet = new Bullet(this.x + this.width/2, this.y, true);
 					this.parentNode.addChild(bullet);
 				}
 			}
 		});
-var Bullet = Class.create(Sprite, {
-	initialize: function(x, y) {
-		this.moveSpeed = 3;
-		// super
-		Sprite.apply(this, [10, 30]);
 		
-		this.x = x;
-		this.y = y - this.height;
-		
-		this.game = Game.instance;
-		this.image = this.game.assets['assets/beam.png'];
+		var Bullet = Class.create(Sprite, {
+			initialize: function(x, y, playerShot) {
+				this.moveSpeed = 7;
+				// super
+				Sprite.apply(this, [10, 30]);
+				
+				this.x = x;
+				this.y = y - this.height;
+				this.playerShot = playerShot;
 
-		this.addEventListener(Event.ENTER_FRAME, this.update);
-	},
-	update: function(evt) {
-		this.y -= this.moveSpeed;
-		if(this.y+this.height < 0) {
-			this.parentNode.removeChild(this);
-		}
-	}
-});
+				this.game = Game.instance;
+				this.image = this.game.assets['assets/beam.png'];
+				
+
+				this.addEventListener(Event.ENTER_FRAME, this.update);
+			},
+			update: function(evt) {
+				this.enemySpawner = this.parentNode.enemySpawner;
+				this.y -= this.moveSpeed;
+				if(this.y+this.height < 0) {
+					this.parentNode.removeChild(this);
+				}
+				// player is hit by enemy bullet
+				if(!this.playerShot && this.intersect(this.parentNode.player))
+				{
+					console.log("bullet");
+					this.parentNode.removeChild(this);
+				}
+				else if(this.playerShot) {
+					for(var i = 0; i < this.enemySpawner.enemies.length; i++) {
+						if(this.intersect(this.enemySpawner.enemies[i])) {
+							this.parentNode.removeChild(this.enemySpawner.enemies[i]);
+							// probably need indexOf here, the array will shift
+							this.enemySpawner.enemies.splice(i, 1);
+							this.parentNode.removeChild(this);
+							break;
+						}
+					}
+				}
+			}
+		});
+		
+		var EnemySpawner = Class.create({
+			initialize: function(scene) {
+				this.scene = scene;
+				this.enemies = [];
+				this.elapsed = 0;
+				this.waveCount = 0;
+				// these variables control how hard a wave will be
+				// how long to wait between enemies spawn
+				this.staggerSpawn = 350;
+				// how many total in the wave
+				this.enemiesToSpawn = 0;
+				// how many shots/ how much life the enemies will have
+				this.enemyLife = 1;
+				// how many enemies can spawn together
+				this.manySpawn = 1;
+			},
+			spawnWave: function() {
+				this.waveCount++;
+				this.elapsed = 0;
+				// recalcuate how hard the wave should be
+				this.staggerSpawn = Math.max(150, 350 - this.waveCount * 50);
+				// increase enemy life every 2 waves
+				this.enemyLife = Math.max(1, Math.floor(this.waveCount / 2));
+				// waveCount to 2 * waveCount enemies can spawn
+				this.enemiesToSpawn = Math.floor(Math.random() * this.waveCount) + this.waveCount;
+				// increases every 2 waves
+				this.manySpawn = Math.max(Math.floor(this.waveCount / 2), 1);
+			},
+			update: function(evt) {
+				this.elapsed += evt.elapsed;
+				if(this.enemiesToSpawn <= 0 && this.enemies.length == 0) {
+					this.spawnWave();
+				}
+				if (this.enemiesToSpawn > 0 && this.elapsed >= this.staggerSpawn) {
+					this.elapsed = 0;
+					// TODO different enemies ???
+					for(var i = 0; i < this.manySpawn; i++) {
+						var enemy = new Enemy(this, this.enemyLife);
+						this.enemies.push(enemy);
+						this.scene.addChild(enemy);
+					}
+					this.enemiesToSpawn -= this.manySpawn; 
+				}
+			}
+		});
+		var Enemy = Class.create(Sprite, {
+			initialize: function(spawner, life) {
+				// super
+				Sprite.apply(this, [78, 78]);
+
+				this.game = Game.instance;
+				this.image = this.game.assets['assets/enemy.png'];
+				
+				this.x = Math.floor(Math.random() * (this.game.width - this.width));
+				this.y = 0;
+				this.life = life;
+				this.spawner = spawner;
+				this.moveSpeed = 2;
+
+				this.goDown = true;
+
+				this.addEventListener(Event.ENTER_FRAME, this.update);
+			},
+			update: function(evt) {
+				if(this.goDown){
+					this.y -= this.moveSpeed;
+					if(this.y <= this.height) {
+						this.goDown = false;
+					}	
+				}
+				else {
+					this.y += this.moveSpeed;
+					if (this.y >= this.game.height - this.height) {
+						this.goDown = true;
+					}
+				}
+				// perodically shoot stuff...
+			}
+		});	
 	};
 </script>
