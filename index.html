@@ -274,6 +274,8 @@
 				}
 				// seek top
 				else if(this.moveType == 2) {
+					// prevent shooting while seeking top
+					this.elapsedShot = 0;
 					this.y -= this.moveSpeed;
 					if(this.y <= 0) {
 						this.moveType = 3;
@@ -298,24 +300,14 @@
 				// hover down
 				else if(this.moveType == 3) {
 					this.y += this.moveSpeed;
-					if (this.y > this.game.height) {
-						// remove this
-					}
 				}
-				// if(this.goDown){
-				// 	this.y -= this.moveSpeed;
-				// 	if(this.y <= 0) {
-				// 		this.goDown = false;
-				// 		this.scaleY = 1;
-				// 	}	
-				// }
-				// else {
-				// 	this.y += this.moveSpeed;
-				// 	if (this.y >= this.game.height - this.height) {
-				// 		this.goDown = true;
-				// 		this.scaleY = -1;
-				// 	}
-				// }
+				// remove'em
+				if (this.y > this.game.height) {
+					var i = this.spawner.enemies.indexOf(this);
+					this.parentNode.removeChild(this);
+					this.spawner.enemies.splice(i, 1);
+					return;
+				}
 				// // perodically shoot stuff...
 				if (this.elapsedShot > this.shootFrequency) {
 					this.elapsedShot = 0;
