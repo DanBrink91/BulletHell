@@ -36,14 +36,22 @@
 				bg.image = game.assets["assets/bg.png"];
 
 				this.player = new PlayerShip();
-				
 				this.enemySpawner = new EnemySpawner(this);
+				
+				this.currentLevel = new Level([
+					{time: 0, data: {staggerSpawn: 200, patterns: [1], enemiesToSpawn: 5, maxWaveStagger: 10000, minWaveStagger: 10000}},
+					{time: 30000, data: {patterns: [0, 1], maxWaveStagger: 5000, minWaveStagger: 3000}},
+					{time: 90000, data: {maxWaveStagger: 1000, minWaveStagger: 1000}},
+					{time: 10000, data: {enemiesToSpawn: 0}}
+				], this.enemySpawner);				
+
 				this.addChild(bg);
 				this.addChild(this.player);
 				this.addChild(this.scoreLabel);
 				this.addEventListener(Event.ENTER_FRAME, this.update);			
 			},
 			update: function(evt){
+				this.currentLevel.update(evt);
 				this.enemySpawner.update(evt);
 				this.scoreLabel.text = "Score: " + this.score;
 			}
@@ -149,49 +157,60 @@
 				this.scene = scene;
 				this.enemies = [];
 				this.elapsed = 0;
+				this.waveTimer = 0;
 				this.waveCount = 0;
 				// current enemy index spawning
 				this.currentEnemy = 0;
 				// these variables control how hard a wave will be
 				// how long to wait between enemies spawn
 				this.staggerSpawn = 1000;
+				this.minWaveStagger = 3000;
+				this.maxWaveStagger = 5000;
 				// how many total in the wave
 				this.enemiesToSpawn = 0;
 				// how many shots/ how much life the enemies will have
 				this.enemyLife = 1;
 				// how many enemies can spawn together
 				this.manySpawn = 1;
+				
 				this.pattern = 0;
+				this.patterns = [0, 1];
+				
+			},
+			reset: function() {
+				this.elapsed = 0;
+				this.waveTimer = 0;
+				this.currentEnemy = 0;
 			},
 			spawnWave: function() {
-				this.waveCount++;
-				this.pattern = Math.random() > 0.5 ? 1 : 0;
-				this.currentEnemy = 0;
 				this.elapsed = 0;
+				this.waveTimer = 0;
+				this.waveCount++;
+				this.pattern = this.patterns[Math.floor(Math.random() * this.patterns.length)];
+				this.currentEnemy = 0;
 				// recalcuate how hard the wave should be
-				this.staggerSpawn = Math.max(400, 1200 - this.waveCount * 50);
+				//this.staggerSpawn = Math.max(400, 1200 - this.waveCount * 50);
 				// increase enemy life every 5 waves
-				this.enemyLife = Math.max(1, Math.floor(this.waveCount / 5) + 1);
+				//this.enemyLife = Math.max(1, Math.floor(this.waveCount / 5) + 1);
 				// waveCount to 1.5 * waveCount enemies can spawn
-				this.enemiesToSpawn = Math.floor(Math.random() * this.waveCount + 5);
+				//this.enemiesToSpawn = Math.floor(Math.random() * this.waveCount + 5);
 				// increases every 3 waves
 				this.manySpawn = Math.max(1, Math.floor(this.waveCount / 3) + 1);
+				this.waveStagger = Math.floor(Math.random() * (this.maxWaveStagger - this.minWaveStagger)) + this.minWaveStagger;
 			},
 			update: function(evt) {
 				this.elapsed += evt.elapsed;
-				if(this.enemiesToSpawn <= 0 && this.enemies.length == 0) {
+				this.waveTimer += evt.elapsed;
+				
+				if (this.waveTimer > this.waveStagger) {
 					this.spawnWave();
 				}
-				if (this.enemiesToSpawn > 0 && this.elapsed >= this.staggerSpawn) {
+				if (this.enemiesToSpawn > this.currentEnemy && this.elapsed >= this.staggerSpawn) {
 					this.elapsed = 0;
-					// TODO different enemies ???
-					for(var i = 0; i < this.manySpawn; i++) {
-						var enemy = new Enemy(this, this.enemyLife, this.pattern, this.currentEnemy);
-						this.currentEnemy++;
-						this.enemies.push(enemy);
-						this.scene.addChild(enemy);
-					}
-					this.enemiesToSpawn -= this.manySpawn; 
+					var enemy = new Enemy(this, this.enemyLife, this.pattern, this.currentEnemy);
+					this.currentEnemy++;
+					this.enemies.push(enemy);
+					this.scene.addChild(enemy);
 				}
 			}
 		});
@@ -225,8 +244,11 @@
 				this.center_x = 100;
 				this.center_y = 200;
 
+				if(moveType == 0) {
+					this.x = this.center_x + this.radius * Math.cos(this.degree);
+					this.y = this.center_y + this.radius * Math.sin(this.degree);
+				}
 				this.topPosition = 100 + topSlot * this.width;
-				console.log("SHOOTING FOR ", this.topPosition);
 				// diagonal movement
 				this.horizontalMoveSpeed = 3;
 				this.elapsedMove = 0;
@@ -315,12 +337,10 @@
 					if (!this.parentNode) {
 						return;
 					}
-					var y = this.goDown ? this.y : this.y+this.height;
-					var bullet = new Bullet(this.x + this.width/2, y, false, !this.goDown);
+					var bullet = new Bullet(this.x + this.width/2, this.y + this.height, false, !this.goDown);
 					this.parentNode.addChild(bullet);
 				}
-				// // peroidically move horizontally, right now they just kind of wiggle... 
-				// // TODO pick a side and move towards it for X random time
+				// // pick a side and move towards it for X random time, kind of zigzaggy
 				// if (this.elapsedMove > this.moveFrequency) {
 				// 	this.elapsedMove = 0;
 				// 	this.moveFrequency = Math.floor(Math.random() * 800) + 500;
@@ -335,6 +355,26 @@
 				// 	this.x += this.horizontalMoveSpeed;
 				// }
 			}
-		});	
+		});
+		var Level = Class.create({
+			initialize: function(gameEvents, spawner) {
+				this.elapsed = 0;
+				this.gameEvents = gameEvents.reverse();
+				this.spawner = spawner;
+			},
+			update: function(evt) {
+				this.elapsed += evt.elapsed;
+				if(this.gameEvents.length > 0 && this.gameEvents[this.gameEvents.length - 1].time <= this.elapsed){
+					var gameEvent = this.gameEvents.pop();
+					this.spawner.reset();
+					for(var key in gameEvent.data) {
+						if(gameEvent.data.hasOwnProperty(key)) {
+							this.spawner[key] = gameEvent.data[key];
+						}
+					}
+					this.spawner.spawnWave();
+				}
+			}
+		});
 	};
 </script>
