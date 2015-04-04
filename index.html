@@ -37,7 +37,7 @@
 				this.player = new PlayerShip();
 				
 				this.enemySpawner = new EnemySpawner(this);
-
+				console.log(this.enemySpawner);
 				this.addChild(bg);
 				this.addChild(this.player);
 				this.addChild(scoreLabel);
@@ -82,15 +82,15 @@
 				// Shooting
 				if (this.game.input.shoot && this.lastShot > 200) {
 					this.lastShot = 0;
-					var bullet = new Bullet(this.x + this.width/2, this.y, true);
+					var bullet = new Bullet(this.x + this.width/2, this.y, true, true);
 					this.parentNode.addChild(bullet);
 				}
 			}
 		});
 		
 		var Bullet = Class.create(Sprite, {
-			initialize: function(x, y, playerShot) {
-				this.moveSpeed = 7;
+			initialize: function(x, y, playerShot, upwards) {
+				this.moveSpeed = upwards ? 7 : -7;
 				// super
 				Sprite.apply(this, [10, 30]);
 				
@@ -107,14 +107,15 @@
 			update: function(evt) {
 				this.enemySpawner = this.parentNode.enemySpawner;
 				this.y -= this.moveSpeed;
-				if(this.y+this.height < 0) {
+				if(this.y+this.height < 0 || this.y > this.game.height) {
 					this.parentNode.removeChild(this);
+					return;
 				}
 				// player is hit by enemy bullet
 				if(!this.playerShot && this.intersect(this.parentNode.player))
 				{
-					console.log("bullet");
 					this.parentNode.removeChild(this);
+					return;
 				}
 				else if(this.playerShot) {
 					for(var i = 0; i < this.enemySpawner.enemies.length; i++) {
@@ -123,7 +124,7 @@
 							// probably need indexOf here, the array will shift
 							this.enemySpawner.enemies.splice(i, 1);
 							this.parentNode.removeChild(this);
-							break;
+							return;
 						}
 					}
 				}
@@ -138,7 +139,7 @@
 				this.waveCount = 0;
 				// these variables control how hard a wave will be
 				// how long to wait between enemies spawn
-				this.staggerSpawn = 350;
+				this.staggerSpawn = 500;
 				// how many total in the wave
 				this.enemiesToSpawn = 0;
 				// how many shots/ how much life the enemies will have
@@ -150,9 +151,9 @@
 				this.waveCount++;
 				this.elapsed = 0;
 				// recalcuate how hard the wave should be
-				this.staggerSpawn = Math.max(150, 350 - this.waveCount * 50);
-				// increase enemy life every 2 waves
-				this.enemyLife = Math.max(1, Math.floor(this.waveCount / 2));
+				this.staggerSpawn = Math.max(150, 500 - this.waveCount * 50);
+				// increase enemy life every 4 waves
+				this.enemyLife = Math.max(1, Math.floor(this.waveCount / 4));
 				// waveCount to 2 * waveCount enemies can spawn
 				this.enemiesToSpawn = Math.floor(Math.random() * this.waveCount) + this.waveCount;
 				// increases every 2 waves
@@ -188,12 +189,20 @@
 				this.life = life;
 				this.spawner = spawner;
 				this.moveSpeed = 2;
+				this.elapsedMove = 0;
+				// how often to shift to the side
+				this.moveFrequency = 700;
+
+				this.shootFrequency = 500;
+				this.elapsedShot = 0;
 
 				this.goDown = true;
 
 				this.addEventListener(Event.ENTER_FRAME, this.update);
 			},
 			update: function(evt) {
+				this.elapsedShot += evt.elapsed;
+				this.elapsedMove += evt.elapsed;
 				if(this.goDown){
 					this.y -= this.moveSpeed;
 					if(this.y <= this.height) {
@@ -207,6 +216,22 @@
 					}
 				}
 				// perodically shoot stuff...
+				if (this.elapsedShot > this.shootFrequency) {
+					this.elapsedShot = 0;
+					// dying enemies ont have a parent node?
+					if (!this.parentNode) {
+						return;
+					}
+					var y = this.goDown ? this.y : this.y+this.height;
+					var bullet = new Bullet(this.x + this.width/2, y, false, this.goDown);
+					this.parentNode.addChild(bullet);
+				}
+				// peroidically move horizontally, right now they just kind of wiggle... 
+				// TODO pick a side and move towards it for X random time
+				if (this.elapsedMove > this.moveFrequency) {
+					this.elapsedMove = 0;
+					this.x += Math.random() > 0.5 ? this.moveSpeed : -this.moveSpeed;
+				}
 			}
 		});	
 	};
